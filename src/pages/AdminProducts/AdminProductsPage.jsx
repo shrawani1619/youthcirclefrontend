@@ -11,14 +11,14 @@ import { adminPanelLinks } from "../../data/dashboardNavigation";
 import { resolveProductTaxonomy } from "../../data/productCategories";
 import { resolveImageUrl } from "../../utils/resolveImageUrl";
 
-const SIZE_TYPES = [
+const SIZE_TYPE_OPTIONS = [
   { value: "", label: "No sizes" },
-  { value: "letter", label: "Letter (S, M, L, XL)" },
-  { value: "number", label: "Number (30–40)" },
+  { value: "letter", label: "Letter (S, M, L, XL, XXL)" },
+  { value: "number", label: "Number (28–42)" },
   { value: "kids", label: "Kids (year-wise)" },
 ];
 const LETTER_SIZES = ["S", "M", "L", "XL", "XXL"];
-const NUMBER_SIZES = Array.from({ length: 11 }, (_, i) => String(30 + i));
+const NUMBER_SIZES = Array.from({ length: 15 }, (_, i) => String(28 + i));
 const KIDS_SIZES = ["2Y", "3Y", "4Y", "5Y", "6Y", "7Y", "8Y", "9Y", "10Y", "11Y", "12Y"];
 
 const emptyForm = {
@@ -152,7 +152,7 @@ const AdminProductsPage = ({ mode = "list" }) => {
       discount: product.discount || "",
       stock: product.stock || "",
       sizeType: product.sizeType || "",
-      availableSizes: Array.isArray(product.availableSizes) ? product.availableSizes : [],
+      availableSizes: Array.isArray(product.availableSizes) ? [...product.availableSizes] : [],
       imageOne: product.images?.[0] || "",
       imageTwo: product.images?.[1] || "",
       imageThree: product.images?.[2] || "",
@@ -580,16 +580,16 @@ const AdminProductsPage = ({ mode = "list" }) => {
                   <label className="block text-sm font-medium text-slate-700">Size type</label>
                   <select
                     value={form.sizeType}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        sizeType: event.target.value,
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        sizeType: e.target.value,
                         availableSizes: [],
                       }))
                     }
                     className={fieldClass}
                   >
-                    {SIZE_TYPES.map((opt) => (
+                    {SIZE_TYPE_OPTIONS.map((opt) => (
                       <option key={opt.value || "none"} value={opt.value}>
                         {opt.label}
                       </option>
@@ -597,7 +597,12 @@ const AdminProductsPage = ({ mode = "list" }) => {
                   </select>
                   {form.sizeType && (
                     <div>
-                      <p className="mb-2 text-sm font-medium text-slate-700">Available sizes (select all that apply)</p>
+                      <p className="mb-1 text-sm font-medium text-slate-700">
+                        Available sizes for this product
+                      </p>
+                      <p className="mb-3 text-xs text-slate-500">
+                        Tick only the sizes you have in stock. Unselected sizes (e.g. XXL) will not be shown to customers.
+                      </p>
                       <div className="flex flex-wrap gap-2">
                         {(form.sizeType === "letter"
                           ? LETTER_SIZES
@@ -605,23 +610,23 @@ const AdminProductsPage = ({ mode = "list" }) => {
                             ? NUMBER_SIZES
                             : KIDS_SIZES
                         ).map((size) => {
-                          const selected = (form.availableSizes || []).includes(size);
+                          const isAvailable = (form.availableSizes || []).includes(size);
                           return (
                             <button
                               key={size}
                               type="button"
                               onClick={() =>
-                                setForm((current) => ({
-                                  ...current,
-                                  availableSizes: selected
-                                    ? (current.availableSizes || []).filter((s) => s !== size)
-                                    : [...(current.availableSizes || []), size],
+                                setForm((prev) => ({
+                                  ...prev,
+                                  availableSizes: isAvailable
+                                    ? (prev.availableSizes || []).filter((s) => s !== size)
+                                    : [...(prev.availableSizes || []), size],
                                 }))
                               }
                               className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
-                                selected
+                                isAvailable
                                   ? "border-slate-900 bg-slate-900 text-white"
-                                  : "border-slate-300 bg-white text-slate-700 hover:border-slate-500"
+                                  : "border-slate-300 bg-white text-slate-600 hover:border-slate-500"
                               }`}
                             >
                               {size}
@@ -631,7 +636,7 @@ const AdminProductsPage = ({ mode = "list" }) => {
                       </div>
                       {(form.availableSizes || []).length > 0 && (
                         <p className="mt-2 text-xs text-slate-500">
-                          Selected: {form.availableSizes.join(", ")}
+                          Available: {form.availableSizes.join(", ")}
                         </p>
                       )}
                     </div>
