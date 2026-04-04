@@ -436,10 +436,11 @@ const ProductDetails = () => {
                 Buy Now
               </button>
               <Link
-                to={`/try-on/${product._id}`}
+                to="/virtual-trial-room"
+                state={{ product }}
                 className="font-medium text-slate-700 transition hover:text-indigo-600"
               >
-                Try Before Buy
+                Try This Look
               </Link>
               <span className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-600">
                 {stockLabel}

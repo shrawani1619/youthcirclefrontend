@@ -38,7 +38,7 @@ const Footer = () => (
       <div className="grid gap-10 lg:grid-cols-[1.15fr_0.85fr_0.9fr]">
         <div className="max-w-sm space-y-6">
           <div>
-            <p className="font-display text-3xl font-bold tracking-tight">YouthCircle</p>
+            <img src="/logo.png" alt="Youth Circle" className="h-10 w-auto max-w-[160px] object-contain invert" />
             <p className="mt-4 text-base leading-8 text-slate-300">
               Your premier destination for fashion-forward essentials, exclusive drops, and
               elevated everyday style.

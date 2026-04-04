@@ -1,20 +1,23 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import formatPrice from "../../utils/formatPrice";
-import { resolveImageUrl } from "../../utils/resolveImageUrl";
+import { resolveImageUrl, localFallbackImage } from "../../utils/resolveImageUrl";
 
 const ProductCard = ({ product }) => {
   const finalPrice = Number(product.price || 0) * (1 - Number(product.discount || 0) / 100);
+  const [imgSrc, setImgSrc] = useState(() => resolveImageUrl(product.images?.[0]));
 
   return (
     <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-soft transition hover:-translate-y-1">
       <Link to={`/products/${product._id}`} className="block">
         <div className="aspect-[4/5] bg-slate-100">
           <img
-            src={resolveImageUrl(product.images?.[0])}
+            src={imgSrc}
             alt={product.name}
             className="h-full w-full object-cover"
             loading="lazy"
+            onError={() => setImgSrc(localFallbackImage)}
           />
         </div>
       </Link>

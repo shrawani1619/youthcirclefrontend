@@ -268,18 +268,12 @@ const Navbar = () => {
     <header className="sticky top-0 z-50 border-b border-white/30 bg-white/70 backdrop-blur-xl">
       <div className="w-full px-4 py-4 lg:px-8 xl:px-10">
         <div className="flex items-center justify-between gap-3 lg:grid lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:gap-4">
-          <Link to="/" className="flex shrink-0 items-center gap-3" onClick={closeMenu}>
-            <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-sm font-black tracking-tight text-white shadow-soft">
-              YC
-            </span>
-            <div className="leading-[1.02]">
-              <span className="block font-display text-[1.45rem] font-bold tracking-[-0.04em] text-slate-900 xl:text-[1.7rem]">
-                YouthCircle
-              </span>
-              <span className="mt-1.5 hidden text-[10px] font-semibold uppercase tracking-[0.26em] text-slate-400 xl:block">
-                Fashion Marketplace
-              </span>
-            </div>
+          <Link to="/" className="flex shrink-0 items-center" onClick={closeMenu}>
+            <img
+              src="/logo.png"
+              alt="Youth Circle"
+              className="h-20 w-auto max-w-[260px] object-contain"
+            />
           </Link>
 
           <nav className="hidden min-w-0 items-center justify-center gap-0.5 lg:flex xl:gap-1.5">

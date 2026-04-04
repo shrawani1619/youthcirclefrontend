@@ -23,6 +23,8 @@ import ProductListing from "../pages/ProductListing/ProductListing";
 import KidsCollectionPage from "../pages/KidsCollection/KidsCollectionPage";
 import Register from "../pages/Register/Register";
 import TryOnPage from "../pages/TryOnPage/TryOnPage";
+import VirtualTrialRoomPage from "../pages/VirtualTrialRoomPage/VirtualTrialRoomPage";
+import PoseVirtualTryOnPage from "../pages/PoseVirtualTryOnPage/PoseVirtualTryOnPage";
 import VendorDashboard from "../pages/VendorDashboard/VendorDashboard";
 import VendorOrdersPage from "../pages/VendorOrders/VendorOrdersPage";
 import VendorProductsPage from "../pages/VendorProducts/VendorProductsPage";
@@ -92,6 +94,22 @@ const AppRoutes = () => (
       element={
         <PublicPage>
           <TryOnPage />
+        </PublicPage>
+      }
+    />
+    <Route
+      path="/virtual-trial-room"
+      element={
+        <PublicPage>
+          <VirtualTrialRoomPage />
+        </PublicPage>
+      }
+    />
+    <Route
+      path="/pose-virtual-try-on"
+      element={
+        <PublicPage>
+          <PoseVirtualTryOnPage />
         </PublicPage>
       }
     />

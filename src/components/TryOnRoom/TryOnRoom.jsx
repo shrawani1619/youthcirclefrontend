@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 
-import { createTryOnSession } from "../../utils/tryOnHelpers";
+import { createTryOnSession, isCameraSupported } from "../../utils/tryOnHelpers";
 
 const TryOnRoom = ({ garmentUrl, productName }) => {
   const videoRef = useRef(null);
   const overlayCanvasRef = useRef(null);
   const sessionRef = useRef(null);
 
+  const [cameraSupported] = useState(() => isCameraSupported());
   const [status, setStatus] = useState("Camera is off.");
   const [error, setError] = useState("");
   const [scale, setScale] = useState(1);
@@ -100,8 +101,9 @@ const TryOnRoom = ({ garmentUrl, productName }) => {
               <div className="max-w-sm space-y-3">
                 <p className="text-lg font-semibold text-white">Virtual Trial Room</p>
                 <p className="text-sm text-slate-300">
-                  Start your camera to send frames to the Python AI service and preview how{" "}
-                  {productName || "this outfit"} aligns on your body in real time.
+                  {cameraSupported
+                    ? `Start your camera to preview how ${productName || "this outfit"} aligns on your body in real time.`
+                    : "Camera is not available on this page. Use the app at http://localhost:3000 on your computer, or over HTTPS, to enable the try-on camera."}
                 </p>
               </div>
             </div>
@@ -123,7 +125,7 @@ const TryOnRoom = ({ garmentUrl, productName }) => {
             <button
               type="button"
               onClick={isActive ? stopSession : startSession}
-              disabled={isLoading}
+              disabled={isLoading || !cameraSupported}
               className="rounded-full bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-indigo-300"
             >
               {isLoading ? "Starting..." : isActive ? "Stop Camera" : "Start Try-On"}

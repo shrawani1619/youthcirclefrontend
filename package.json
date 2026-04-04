@@ -10,15 +10,22 @@
     "eject": "react-scripts eject"
   },
   "dependencies": {
+    "@mediapipe/camera_utils": "^0.3.1675466862",
+    "@mediapipe/drawing_utils": "^0.3.1675466124",
+    "@mediapipe/pose": "^0.5.1675469404",
+    "@mediapipe/selfie_segmentation": "^0.1.1675465747",
     "autoprefixer": "^10.4.27",
     "axios": "^1.13.6",
     "framer-motion": "^12.35.2",
+    "konva": "^10.2.1",
     "postcss": "^8.5.8",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "react-konva": "^19.2.3",
     "react-router-dom": "^7.13.1",
     "react-scripts": "^5.0.1",
-    "tailwindcss": "^3.4.17"
+    "tailwindcss": "^3.4.17",
+    "use-image": "^1.1.4"
   },
   "browserslist": {
     "production": [

@@ -1,4 +1,4 @@
-const TRYON_API_URL = process.env.REACT_APP_TRYON_API_URL || "http://localhost:8000";
+import { detectPose } from "../api/tryonApi";
 
 const createDefaultGarmentSvg = () =>
   `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
@@ -57,40 +57,114 @@ const ensureCanvasSize = (canvas, width, height) => {
   }
 };
 
-const canvasToBlob = (canvas) =>
-  new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) {
-          reject(new Error("Unable to capture the current camera frame."));
-          return;
-        }
+/** Capture current video frame as base64 (for pose API). */
+const canvasToDataUrl = (canvas) => canvas.toDataURL("image/jpeg", 0.85);
 
-        resolve(blob);
-      },
-      "image/jpeg",
-      0.92
-    );
+/** Load garment image from URL or data URL. */
+const loadGarmentImage = (src) =>
+  new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src || defaultGarmentUrl;
   });
 
-const drawProcessedBlob = async (overlayCanvas, blob) => {
-  const objectUrl = URL.createObjectURL(blob);
+/**
+ * Compute garment bounding box in **video pixel** coordinates from pose landmarks.
+ * @param {object} landmarks - leftShoulder, rightShoulder, leftHip, rightHip, neck (optional)
+ * @param {'top'|'bottom'|'jewellery'|'shoes'} layerKind
+ * @param {number} scaleFactor - multiplier (e.g. from UI slider)
+ * @returns {{ x: number, y: number, width: number, height: number } | null}
+ */
+export function computeGarmentLayoutFromLandmarks(landmarks, layerKind = "top", scaleFactor = 1) {
+  const { leftShoulder, rightShoulder, leftHip, rightHip, neck } = landmarks;
+  if (!leftShoulder || !rightShoulder || !leftHip || !rightHip) return null;
 
-  try {
-    const image = new Image();
-    await new Promise((resolve, reject) => {
-      image.onload = resolve;
-      image.onerror = reject;
-      image.src = objectUrl;
-    });
+  const shoulderWidth = Math.hypot(
+    rightShoulder.x - leftShoulder.x,
+    rightShoulder.y - leftShoulder.y
+  );
+  const torsoLeft = Math.hypot(leftHip.x - leftShoulder.x, leftHip.y - leftShoulder.y);
+  const torsoRight = Math.hypot(rightHip.x - rightShoulder.x, rightHip.y - rightShoulder.y);
+  const torsoHeight = (torsoLeft + torsoRight) / 2;
 
-    const context = overlayCanvas.getContext("2d");
-    context.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-    context.drawImage(image, 0, 0, overlayCanvas.width, overlayCanvas.height);
-  } finally {
-    URL.revokeObjectURL(objectUrl);
+  const centerX = (leftShoulder.x + rightShoulder.x) / 2;
+  const shoulderY = (leftShoulder.y + rightShoulder.y) / 2;
+
+  if (layerKind === "top") {
+    const drawWidth = shoulderWidth * 1.4 * scaleFactor;
+    const drawHeight = torsoHeight * 2.2 * scaleFactor;
+    const x = centerX - drawWidth / 2;
+    const y = (neck ? neck.y : shoulderY) - drawHeight * 0.15;
+    return { x, y, width: drawWidth, height: drawHeight };
   }
+
+  if (layerKind === "bottom") {
+    const drawWidth = shoulderWidth * 1.25 * scaleFactor;
+    const drawHeight = torsoHeight * 2.0 * scaleFactor;
+    const midHipY = (leftHip.y + rightHip.y) / 2;
+    const x = centerX - drawWidth / 2;
+    const y = midHipY - drawHeight * 0.15;
+    return { x, y, width: drawWidth, height: drawHeight };
+  }
+
+  if (layerKind === "jewellery") {
+    const neckX = neck ? neck.x : centerX;
+    const neckY = neck ? neck.y : shoulderY - shoulderWidth * 0.12;
+    const s = shoulderWidth * 0.38 * scaleFactor;
+    return { x: neckX - s / 2, y: neckY - s * 0.35, width: s, height: s };
+  }
+
+  if (layerKind === "shoes") {
+    const drawWidth = shoulderWidth * 0.95 * scaleFactor;
+    const drawHeight = torsoHeight * 0.85 * scaleFactor;
+    const footY = Math.max(leftHip.y, rightHip.y) + torsoHeight * 0.55;
+    const x = centerX - drawWidth / 2;
+    const y = footY - drawHeight * 0.5;
+    return { x, y, width: drawWidth, height: drawHeight };
+  }
+
+  return null;
+}
+
+/**
+ * Map a rectangle in **video** pixel space to Konva coordinates inside a **horizontally mirrored** stage
+ * (same setup as `object-cover` video + `scaleX(-1)` overlay).
+ */
+export function mapVideoRectToMirroredStage(rect, vw, vh, stageW, stageH) {
+  if (!vw || !vh || !stageW || !stageH) return { ...rect };
+  const coverScale = Math.max(stageW / vw, stageH / vh);
+  const offsetX = (stageW - vw * coverScale) / 2;
+  const offsetY = (stageH - vh * coverScale) / 2;
+  const coverLeft = rect.x * coverScale + offsetX;
+  const coverTop = rect.y * coverScale + offsetY;
+  const dw = rect.width * coverScale;
+  const dh = rect.height * coverScale;
+  return {
+    x: stageW - coverLeft - dw,
+    y: coverTop,
+    width: dw,
+    height: dh,
+  };
+}
+
+/** Draw garment on overlay canvas using pose landmarks (live video overlay). */
+const drawGarmentFromLandmarks = (ctx, garmentImg, landmarks, scaleFactor, videoWidth, videoHeight) => {
+  const rect = computeGarmentLayoutFromLandmarks(landmarks, "top", scaleFactor);
+  if (!rect) return;
+
+  ctx.save();
+  ctx.globalAlpha = 0.92;
+  ctx.drawImage(garmentImg, rect.x, rect.y, rect.width, rect.height);
+  ctx.restore();
 };
+
+/** Check if camera (getUserMedia) is available. Requires HTTPS or localhost. */
+export const isCameraSupported = () =>
+  typeof navigator !== "undefined" &&
+  navigator.mediaDevices != null &&
+  typeof navigator.mediaDevices.getUserMedia === "function";
 
 export const createTryOnSession = async ({
   videoElement,
@@ -101,6 +175,15 @@ export const createTryOnSession = async ({
   onPoseState,
 }) => {
   onStatus?.("Requesting camera access...");
+
+  if (!isCameraSupported()) {
+    const isSecure = typeof window !== "undefined" && (window.isSecureContext || window.location?.protocol === "https:" || /^localhost$|^127\.0\.0\.1$/i.test(window.location?.hostname || ""));
+    throw new Error(
+      isSecure
+        ? "Camera is not supported in this browser."
+        : "Camera access requires a secure connection (HTTPS) or opening the app from this device at http://localhost:3000. When using the app from your phone at an IP address (e.g. 192.168.0.69), the browser blocks the camera on HTTP. Use try-on on your computer, or serve the app over HTTPS."
+    );
+  }
 
   const stream = await navigator.mediaDevices.getUserMedia({
     video: {
@@ -128,62 +211,70 @@ export const createTryOnSession = async ({
   let isDisposed = false;
   let activeAbortController = null;
 
+  const garmentImg = await loadGarmentImage(garmentUrl || defaultGarmentUrl);
+  const overlayCtx = overlayCanvas.getContext("2d");
+
   const processFrame = async () => {
-    if (videoElement.readyState < 2) {
-      return;
-    }
+    if (videoElement.readyState < 2 || isDisposed) return;
 
     const context = captureCanvas.getContext("2d");
     context.drawImage(videoElement, 0, 0, captureCanvas.width, captureCanvas.height);
 
-    const blob = await canvasToBlob(captureCanvas);
-    const formData = new FormData();
+    const frameBase64 = canvasToDataUrl(captureCanvas);
 
-    formData.append("file", blob, "frame.jpg");
-    formData.append("model", garmentUrl || defaultGarmentUrl);
-    formData.append("scale", String(scaleFactor));
+    try {
+      activeAbortController = new AbortController();
+      const result = await detectPose(frameBase64);
 
-    activeAbortController = new AbortController();
+      if (isDisposed) return;
 
-    const response = await fetch(`${TRYON_API_URL}/tryon/process-frame`, {
-      method: "POST",
-      body: formData,
-      signal: activeAbortController.signal,
-    });
+      overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
 
-    if (!response.ok) {
-      throw new Error("Python try-on service could not process the frame.");
+      const hasPose =
+        result.success &&
+        (result.leftShoulder || result.rightShoulder) &&
+        (result.leftHip || result.rightHip);
+
+      if (hasPose) {
+        drawGarmentFromLandmarks(
+          overlayCtx,
+          garmentImg,
+          {
+            leftShoulder: result.leftShoulder,
+            rightShoulder: result.rightShoulder,
+            leftHip: result.leftHip,
+            rightHip: result.rightHip,
+            neck: result.neck,
+          },
+          scaleFactor,
+          overlayCanvas.width,
+          overlayCanvas.height
+        );
+        onStatus?.("Live camera: pose detected. Outfit overlay active.");
+      } else {
+        onStatus?.("Live camera: position your shoulders and torso in frame.");
+      }
+
+      onPoseState?.({ detected: !!hasPose });
+    } catch (error) {
+      if (!isDisposed && error.name !== "AbortError" && error.name !== "CanceledError") {
+        overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+        onStatus?.("Waiting for pose service… Keep camera in frame.");
+        onPoseState?.({ detected: false });
+      }
+    } finally {
+      activeAbortController = null;
     }
-
-    const imageBlob = await response.blob();
-    await drawProcessedBlob(overlayCanvas, imageBlob);
-
-    const poseDetected = response.headers.get("X-Pose-Detected") === "true";
-
-    onStatus?.("AI service connected. Processing camera frames.");
-    onPoseState?.({
-      detected: poseDetected,
-    });
   };
 
   const processLoop = async () => {
     while (!isDisposed) {
-      try {
-        await processFrame();
-      } catch (error) {
-        if (!isDisposed && error.name !== "AbortError") {
-          onStatus?.("Waiting for Python AI service on port 8000...");
-          onPoseState?.({ detected: false });
-        }
-      } finally {
-        activeAbortController = null;
-      }
-
-      await sleep(180);
+      await processFrame();
+      await sleep(200);
     }
   };
 
-  onStatus?.("Camera ready. Sending frames to the Python AI service.");
+  onStatus?.("Live camera on. Detecting pose and overlaying outfit.");
   processLoop();
 
   const handleResize = () => {
@@ -201,7 +292,15 @@ export const createTryOnSession = async ({
       scaleFactor = nextScale;
     },
     capture() {
-      return overlayCanvas.toDataURL("image/png");
+      const w = overlayCanvas.width;
+      const h = overlayCanvas.height;
+      const temp = document.createElement("canvas");
+      temp.width = w;
+      temp.height = h;
+      const tctx = temp.getContext("2d");
+      tctx.drawImage(videoElement, 0, 0, w, h);
+      tctx.drawImage(overlayCanvas, 0, 0, w, h);
+      return temp.toDataURL("image/png");
     },
     stop() {
       if (isDisposed) {

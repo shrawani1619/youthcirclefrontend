@@ -233,9 +233,11 @@ export const DashboardLayout = ({
         <aside className={sidebarClass}>
           <div className="flex h-full flex-col">
             <div>
-              <p className={`text-2xl font-bold tracking-tight ${isDarkVariant ? "text-white" : "text-slate-900"}`}>
-                YouthCircle
-              </p>
+              <img
+                src="/logo.png"
+                alt="Youth Circle"
+                className={`h-9 w-auto max-w-[120px] object-contain ${isDarkVariant ? "invert" : ""}`}
+              />
               <p className={`mt-2 text-xs font-medium uppercase tracking-[0.22em] ${isDarkVariant ? "text-slate-400" : "text-slate-400"}`}>
                 {panelLabel}
               </p>
